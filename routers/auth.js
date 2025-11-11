@@ -6,75 +6,60 @@ import usermodel from "../models/user.model.js";
 
 const router = express.Router();
 
-// -----------------------------------------------------------
-// Middleware
-// -----------------------------------------------------------
+// Add cookie-parser middleware
 router.use(cookieParser());
 
-// -----------------------------------------------------------
-// POST /api/login
-// -----------------------------------------------------------
+// --- Login Route ---
 router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ msg: "Please enter all fields" });
+  }
+
   try {
-    const { email, password } = req.body;
-
-    // 1️⃣ Input validation
-    if (!email || !password) {
-      return res.status(400).json({ msg: "Please enter all fields" });
-    }
-
-    // 2️⃣ Check user existence
     const user = await usermodel.findOne({ email });
     if (!user) {
       return res.status(400).json({ msg: "User does not exist" });
     }
 
-    // 3️⃣ Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
-    // 4️⃣ Create JWT token
     const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        isAdmin: user.isAdmin || false,
-      },
+      { id: user._id, email: user.email, isAdmin: user.isAdmin },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // 5️⃣ Store token in HTTP-only cookie
+    // Send as cookie + response
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 60 * 60 * 1000, // 1 hour
     });
 
-    // 6️⃣ Send response
-    res.status(200).json({
+    res.json({
       msg: "Login successful",
+      token, // optional (can remove if you want only cookie)
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        isAdmin: user.isAdmin || false,
+        isAdmin: user.isAdmin,
       },
-      token, // optional — helps frontends not using cookies
     });
   } catch (error) {
-    console.error("❌ Error in /login:", error.message);
+    console.error("Error in /login:", error);
     res.status(500).json({ msg: "Server Error" });
   }
 });
 
-// -----------------------------------------------------------
-// (Optional) GET /api/logout
-// -----------------------------------------------------------
-router.get("/logout", (req, res) => {
+// --- Logout Route ---
+router.post("/logout", (req, res) => {
   res.clearCookie("token");
   res.json({ msg: "Logged out successfully" });
 });

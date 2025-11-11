@@ -1,5 +1,5 @@
 // ===========================================================
-// ✅ Serverless Express API (Vercel Compatible)
+// ✅ Express API — Fully Compatible with Vercel
 // ===========================================================
 
 import dotenv from "dotenv";
@@ -7,12 +7,12 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-import serverless from "serverless-http"; // ⬅ required for Vercel
+
 import usermodel from "../models/user.model.js";
 import authRoutes from "../routers/auth.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
-// Load .env (works locally; on Vercel, use Dashboard for env vars)
+// Load environment variables
 dotenv.config();
 
 // -----------------------------------------------------------
@@ -25,14 +25,14 @@ const app = express();
 // -----------------------------------------------------------
 app.use(
   cors({
-    origin: "*",
+    origin: process.env.CLIENT_ORIGIN || "*", // allow all for now
     credentials: true,
   })
 );
 app.use(express.json());
 
 // -----------------------------------------------------------
-// DATABASE CONNECTION (cached for serverless)
+// DATABASE CONNECTION (cached for serverless environment)
 // -----------------------------------------------------------
 let cachedDb = null;
 async function connectDB() {
@@ -131,6 +131,12 @@ app.post("/api/register", async (req, res) => {
 app.use("/api", authRoutes);
 
 // -----------------------------------------------------------
-// EXPORT FOR VERCEL (must export handler)
+// EXPORT DEFAULT for VERCEL
 // -----------------------------------------------------------
-export const handler = serverless(app);
+export default app;
+
+// For local testing (ignored by Vercel)
+if (process.env.NODE_ENV !== "production") {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log(`🚀 Server running locally on port ${port}`));
+}
