@@ -121,6 +121,7 @@ app.post("/api/register", async (req, res) => {
         email: savedUser.email,
       },
     });
+    console.log("🆕 Registration Attempt:", name, email); // <--- ADD THIS LINE
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).json({ msg: "Server Error" });

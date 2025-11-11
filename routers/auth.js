@@ -52,6 +52,7 @@ router.post("/login", async (req, res) => {
         isAdmin: user.isAdmin,
       },
     });
+    console.log("🔐 Login Attempt:", email);
   } catch (error) {
     console.error("Error in /login:", error);
     res.status(500).json({ msg: "Server Error" });
