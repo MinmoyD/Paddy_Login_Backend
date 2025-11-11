@@ -1,19 +1,33 @@
-import jwt from "jsonwebtoken"
+import jwt from "jsonwebtoken";
 
-export const authMiddleware = (req, res, next) =>{
-    const token = req.header("Authorization")?.replace("Bearer ","")
+export const authMiddleware = (req, res, next) => {
+  try {
+    const authHeader = req.header("Authorization");
 
-    if(!token){
-        return res.status(401).json({msg:"No token, authorization denied"})
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ msg: "No token provided, authorization denied" });
     }
 
+    const token = authHeader.replace("Bearer ", "").trim();
 
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-        next();
-        
-    } catch (error) {
-        console.error("Error in authMiddlware",error);        
+    // Verify token with secret key
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Attach user info to request
+    req.user = decoded;
+
+    next();
+  } catch (error) {
+    console.error("❌ Error in authMiddleware:", error.message);
+
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({ msg: "Invalid token" });
     }
-}
+
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ msg: "Token expired" });
+    }
+
+    res.status(500).json({ msg: "Server error in authentication" });
+  }
+};
