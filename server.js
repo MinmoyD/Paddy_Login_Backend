@@ -25,7 +25,7 @@ const app = express();
 // -----------------------------------------------------------
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "*", // allow all for now
+    origin: "https://paddy-purchase.vercel.app",
     credentials: true,
   })
 );
