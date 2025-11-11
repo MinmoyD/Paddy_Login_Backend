@@ -1,18 +1,28 @@
-import dotenv from "dotenv";
-dotenv.config();
+// ===========================================================
+// ✅ Serverless Express API (Vercel Compatible)
+// ===========================================================
 
+import dotenv from "dotenv";
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-
+import serverless from "serverless-http"; // ⬅ required for Vercel
 import usermodel from "../models/user.model.js";
 import authRoutes from "../routers/auth.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
+// Load .env (works locally; on Vercel, use Dashboard for env vars)
+dotenv.config();
+
+// -----------------------------------------------------------
+// APP INITIALIZATION
+// -----------------------------------------------------------
 const app = express();
 
-// ---------------------------- MIDDLEWARE ---------------------------- //
+// -----------------------------------------------------------
+// MIDDLEWARE
+// -----------------------------------------------------------
 app.use(
   cors({
     origin: process.env.CLIENT_ORIGIN || "http://localhost:5174",
@@ -21,7 +31,36 @@ app.use(
 );
 app.use(express.json());
 
-// ---------------------------- TEST DATA ---------------------------- //
+// -----------------------------------------------------------
+// DATABASE CONNECTION (cached for serverless)
+// -----------------------------------------------------------
+let cachedDb = null;
+async function connectDB() {
+  if (cachedDb) return cachedDb;
+
+  if (!process.env.MONGO_URL) {
+    console.error("❌ MONGO_URL not found in environment variables");
+    throw new Error("Missing MONGO_URL");
+  }
+
+  try {
+    const db = await mongoose.connect(process.env.MONGO_URL, {
+      bufferCommands: false,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    cachedDb = db;
+    console.log("✅ MongoDB connected");
+    return db;
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err);
+    throw err;
+  }
+}
+
+// -----------------------------------------------------------
+// TEST DATA
+// -----------------------------------------------------------
 const jokes = [
   { id: 1, setup: "Why don't scientists trust atoms?", punchline: "Because they make up everything!" },
   { id: 2, setup: "Why did the scarecrow win an award?", punchline: "Because he was outstanding in his field!" },
@@ -30,7 +69,9 @@ const jokes = [
   { id: 5, setup: "Why did the bicycle fall over?", punchline: "Because it was two-tired!" },
 ];
 
-// ---------------------------- ALL ROUTES ---------------------------- //
+// -----------------------------------------------------------
+// ROUTES
+// -----------------------------------------------------------
 app.get("/", (req, res) => {
   res.send("✅ API is running on Vercel...");
 });
@@ -41,6 +82,7 @@ app.get("/api/jokes", (req, res) => {
 
 app.get("/api/users", async (req, res) => {
   try {
+    await connectDB();
     const users = await usermodel.find();
     res.json(users);
   } catch (error) {
@@ -49,11 +91,10 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-app.get("/api/dashboard", authMiddleware, (req, res) => {
+app.get("/api/dashboard", authMiddleware, async (req, res) => {
   res.json({ msg: `Welcome ${req.user.email}, you are in the dashboard 🚀` });
 });
 
-// ---------------------------- REGISTER ---------------------------- //
 app.post("/api/register", async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -61,6 +102,8 @@ app.post("/api/register", async (req, res) => {
     return res.status(400).json({ msg: "Please enter all fields" });
 
   try {
+    await connectDB();
+
     const existingUser = await usermodel.findOne({ email });
     if (existingUser)
       return res.status(400).json({ msg: "User already exists" });
@@ -84,17 +127,10 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// --- Auth Routes (login, verify, etc.) ---
+// Auth routes (login, verify, etc.)
 app.use("/api", authRoutes);
 
-// ---------------------------- DATABASE CONNECT ---------------------------- //
-mongoose
-  .connect(process.env.MONGO_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
-
-// ---------------------------- EXPORT FOR VERCEL ---------------------------- //
-export default app;
+// -----------------------------------------------------------
+// EXPORT FOR VERCEL (must export handler)
+// -----------------------------------------------------------
+export const handler = serverless(app);
