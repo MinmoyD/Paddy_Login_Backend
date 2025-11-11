@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 
 import usermodel from "../models/user.model.js";
 import authRoutes from "../routers/auth.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
 
 // Load environment variables
 dotenv.config();
