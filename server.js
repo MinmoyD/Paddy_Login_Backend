@@ -8,8 +8,8 @@ import mongoose from "mongoose";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 
-import usermodel from "../models/user.model.js";
-import authRoutes from "../routers/auth.js";
+import usermodel from "./models/user.model.js";
+import authRoutes from "./routers/auth.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
 
 // Load environment variables
